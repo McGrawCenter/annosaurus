@@ -27,6 +27,24 @@
 </head>
 <body>
 
+<!-- The Modal -->
+<div id="myModal" class="modal">
+
+  <!-- Modal content -->
+  <div class="modal-content">
+    <form name='myform' id="annoForm">
+       <div id="preview"></div>
+       <input type='hidden' id='ID'/>
+       <input type='hidden' id='region'/>
+       <input type='hidden' id='rotation'/>
+       <textarea id="textbody"></textarea>
+       <input type='text' id='tagbody'/>
+       <div style='text-align:right'><a href="#" class='button close'>Cancel</a><input type='submit' value='Create'/></div>
+    </form>  
+  </div>
+
+</div> 
+
 <header>
       <form id="input" name="input" style="width:80%;">
         <input type="text" name="url" id="url" placeholder="Manifest URL" style="width:92%;" value="https://figgy.princeton.edu/concern/scanned_resources/e15d96c6-360e-444e-854f-912556c67f29/manifest"/>
@@ -58,14 +76,6 @@
   
   </div>
   <div id="right-panel">
-    <form name='myform' id="annoForm">
-       <input type='hidden' id='ID'/>
-       <input type='hidden' id='region'/>
-       <input type='hidden' id='rotation'/>
-       <textarea id="textbody"></textarea>
-       <input type='text' id='tagbody'/>
-       <input type='submit' value='Go'/>
-    </form>  
       <div id="gallery-right">
         <div id="gallery-right-slider"></div>
       </div>  
@@ -113,8 +123,11 @@ function openHandler() {
 
 function doCrop(e) {
     console.log(e);
+    jQuery("#preview").html(`<img src='${current.body[1].service[0].id}/${e.region}/350,/${e.rotation}/default.jpg'/>`);
     jQuery("#region").val(e.region);
-    jQuery("#rotation").val(e.rotation);
+    jQuery("#rotation").val(e.rotation);    
+    openModal();
+
 }
 
 
@@ -185,7 +198,8 @@ jQuery(document).ready(function() {
         var id = jQuery(this).attr('id');
         var o = crops[id];
         current = o;
-
+	openModal();
+	
         populateViewer(current);
 
     });
@@ -323,6 +337,7 @@ jQuery("#annoForm").submit(function(e) {
     e.preventDefault();
     //c.toggleCrop();
     c.clear();
+    closeModal();
     jQuery("#textbody").val('');
     jQuery("#tagbody").val('');
     jQuery("#region").val('');
@@ -448,6 +463,29 @@ class Annotation {
 
     }
 }
+
+
+var modal = document.getElementById("myModal");
+function openModal() {
+  setTimeout(function() {
+ jQuery("#textbody").focus();
+  }, 0);
+  modal.style.display = "block";
+}
+function closeModal() {
+  
+  modal.style.display = "none";
+}
+// When the user clicks anywhere outside of the modal, close it
+window.onclick = function(event) {
+  if (event.target == modal) {
+    modal.style.display = "none";
+  }
+}
+
+jQuery(".close").click(function(){
+  closeModal();
+}); 
 
 </script>
 
