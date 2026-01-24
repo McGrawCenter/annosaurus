@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <!-- Basic Page Needs
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <meta charset="utf-8">
+  <title>Annosaurus</title>
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!-- Mobile Specific Metas
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <script type='text/javascript' src='js/jquery.min.js'></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/5.0.1/openseadragon.min.js"></script>
+  <script src="js/annotorious/openseadragon-annotorious.min.js"></script>
+  <script src="https://tripleyefish.com/tools/js/parser.js"></script>  
+  <script src="js/file.js"></script>
+  <script src="js/cropper.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+ 
+
+
+</head>
+<body>
+
+<header>
+      <form id="input" name="input" style="width:80%;">
+        <input type="text" name="url" id="url" placeholder="Manifest URL" style="width:92%;" value="https://figgy.princeton.edu/concern/scanned_resources/e15d96c6-360e-444e-854f-912556c67f29/manifest"/>
+        <input type="submit" id="go" value="Go"/>
+      </form>
+
+      <div id="gallery-right-toolbar">
+        <a href="#" id="import" class="button">Import</a>
+        <a href="#" id="export" class="button">Export</a>
+      </div>   
+      
+</header>
+
+<div class='container'>
+  <div id="left-panel">
+  
+      <div id="gallery-left">
+        <div id="gallery-left-slider"></div>
+      </div>  
+  
+  
+  </div>
+  <div id="center-panel">
+  
+  
+     <div id="openseadragon" style="width:100%;height:90vh;margin:0 auto;border:solid 0px black;background:black;"></div> 
+     <div id="filmstrip"><div id="filmstrip-left-slider" class="gallery"></div></div>
+ 
+  
+  </div>
+  <div id="right-panel">
+    <form name='myform' id="annoForm">
+       <input type='hidden' id='ID'/>
+       <input type='hidden' id='region'/>
+       <input type='hidden' id='rotation'/>
+       <textarea id="textbody"></textarea>
+       <input type='text' id='tagbody'/>
+       <input type='submit' value='Go'/>
+    </form>  
+      <div id="gallery-right">
+        <div id="gallery-right-slider"></div>
+      </div>  
+  
+  
+  </div>
+</div>
+
+
+
+<script type="text/javascript">
+var anno;
+var current = {};
+
+var manifests = {};
+var cards = {};
+var crops = {};
+var annotations = {};
+var tilesources = []
+
+
+var options = {
+    id: "openseadragon",
+    prefixUrl: "js/openseadragon/images/",
+    tileSources: tilesources
+}
+
+var viewer = OpenSeadragon(options);
+var c = new Cropper(viewer, doCrop);
+
+viewer.addHandler("open", openHandler);
+
+function openHandler() {
+    if (current.target.source.selector) {
+        var coords = current.target.source.selector.value.replace('xywh=', '');
+        var imageCoords = coords.split(",");
+        var tl = viewer.viewport.imageToViewportCoordinates(imageCoords[0], imageCoords[1]);
+        var br = viewer.viewport.imageToViewportCoordinates(imageCoords[2], imageCoords[3]);
+        var box1 = new OpenSeadragon.Rect(tl.x, tl.y, br.x, br.y);
+        viewer.viewport.fitBounds(box1);
+    }
+
+}
+
+
+function doCrop(e) {
+    console.log(e);
+    jQuery("#region").val(e.region);
+    jQuery("#rotation").val(e.rotation);
+}
+
+
+function drawCrops() {
+
+    jQuery("#gallery-right-slider").empty();
+    for (i in crops) {
+    console.log(crops[i]);
+        var id = crops[i].id;
+        var image = crops[i].body[1].id;
+        var label = crops[i].body[0].value;
+        var classname = 'right';
+        var container  = 'gallery-right-slider';
+        addCard(id, container, image, label, classname);
+        //jQuery("#gallery-right-slider").append(makeCard(crops[i]), 'right'));
+    }
+
+}
+
+
+jQuery(".crop").click(function(e) {
+    toggleCrop();
+    e.preventDefault();
+});
+
+/*
+function deactivateCrop() {
+    var cropbutton = jQuery(".crop");
+    cropbutton.removeClass('activated');
+    anno.setDrawingEnabled(false);
+}
+
+function activateCrop() {
+    var cropbutton = jQuery(".crop");
+    cropbutton.addClass('activated');
+    anno.setDrawingEnabled(true);
+}
+
+function toggleCrop() {
+    var cropbutton = jQuery(".crop");
+    if (cropbutton.hasClass('activated')) {
+        console.log('deactivate crop');
+        cropbutton.removeClass('activated');
+    } else {
+        console.log('activate crop');
+        cropbutton.addClass('activated');
+    }
+}
+*/
+
+jQuery(document).ready(function() {
+
+
+    jQuery(document).on("click", ".card.left", function(e) {
+        var id = jQuery(this).attr('id');
+        jQuery('#region').val('full');
+        jQuery('#rotation').val('0');
+        jQuery('#textbody').val('');
+        jQuery('#tagbody').val('');
+        var o = cards[id];
+        current = o;
+        viewer.open(o.body[1].service[0].id + "/info.json");
+    });
+
+
+
+    jQuery(document).on("click", ".card.right", function(e) {
+        var id = jQuery(this).attr('id');
+        var o = crops[id];
+        current = o;
+
+        populateViewer(current);
+
+    });
+
+
+
+});
+
+
+
+/************************************
+ * 
+ *************************************/
+function makeid() {
+    let result = '';
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const charactersLength = characters.length;
+    let counter = 0;
+    while (counter < 12) {
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+        counter += 1;
+    }
+    return result;
+}
+
+
+function loadManifest(url) {
+
+    var parser = new Parser();
+    parser.parse(url).then((data) => {
+
+        manifests[url] = data
+
+        switch (data.type) {
+
+            case "Collection":
+                data.items.forEach((item) => {
+                    loadManifest(item);
+                });
+                break;
+
+            default:
+
+                var html = `<h5 class='manifest-label'>${data.label}</h5><div>`;
+
+                for (i in data.items) {
+                    var id = makeid();
+                    var z = new Annotation(id);
+                    z.setLabel(data.items[i].label);
+                    z.setCanvas(data.items[i].canvas);
+                    z.setManifest(data.items[i].manifest);
+
+                    z.setImageBody(data.items[i].serviceurl, 'full', '0');
+                    //z.setThumbnail(data.items[i].serviceurl+"/full/300,/0/default.jpg");
+                    cards[id] = z;
+                    tilesources[id] = data.items[i].serviceurl;
+                    html += z.makeCard('left');
+                }
+                html += "</div>";
+                jQuery("#gallery-left-slider").prepend(html);
+
+                break;
+
+        }
+    }).then((data) => {
+        console.log('done');
+    });
+
+
+}
+
+
+//id, container, image, label, id, classname
+function addManifest(id, container, image, label, classname = "") {
+
+    var c = `<div class="card small ${classname}" id='${id}'>
+      <div class="section media"><img src="${image}"/>
+      </div>
+      <div class="section meta">${label}</div>
+      </div>`;
+    jQuery("#" + container).append(c);
+
+}
+
+
+
+//id, container, image, label, id, classname
+function addCard(id, container, image, label, classname) {
+
+    var c = `<div class="card small ${classname}" id='${id}'>
+      <div class="section media"><img src="${image}"/>
+      </div>
+      <div class="section meta">${label}</div>
+      </div>`;
+
+    jQuery("#" + container).append(c);
+
+}
+
+function populateViewer(a) {
+    viewer.open(a.body[1].service[0].id + "/info.json");
+    var parts = a.body[1].id.split('/');
+    jQuery('#ID').val(a.id);
+    jQuery('#region').val(parts[6]);
+    jQuery('#rotation').val(parts[8]);
+    jQuery('#textbody').val(a.body[0].value);
+    jQuery('#tagbody').val('');
+}
+
+
+jQuery("#annoForm").submit(function(e) {
+    var ID = jQuery("#ID").val();
+    var text = jQuery("#textbody").val();
+    var tags = jQuery("#tagbody").val();
+    var region = jQuery("#region").val();
+    var rotation = jQuery("#rotation").val();
+    
+    if(ID !='') {
+      crops[ID].body[0].value = text;
+      drawCrops();
+      
+    }
+    else {
+      var id = makeid();
+      var z = new Annotation(id);
+      z.setLabel(text);
+      z.setCanvas(current.target.source.id);
+      z.setManifest(current.target.source.partOf.source);
+      z.setImageBody(current.body[1].service[0].id, region, rotation);
+      z.setSelector(region);
+      crops[id] = z;
+      tilesources[id] = current.body[1].service[0].id;
+      jQuery("#gallery-right-slider").append(z.makeCard('right'));
+    }
+    e.preventDefault();
+    //c.toggleCrop();
+    c.clear();
+    jQuery("#textbody").val('');
+    jQuery("#tagbody").val('');
+    jQuery("#region").val('');
+    jQuery("#rotation").val('');    
+});
+
+
+jQuery("#input").submit(function(e) {
+    var url = jQuery("#url").val();
+    loadManifest(url);
+    e.preventDefault();
+});
+
+
+jQuery("#export").click(function(e) {
+    console.log(crops);
+    e.preventDefault;
+});
+
+
+
+function setViewer(service, region) {
+    // open image in OSD -----------------------------------
+    viewer.open(service + "/info.json");
+
+    if (current.region != "") {
+
+        viewer.addHandler("open", openHandler);
+
+        function openHandler() {
+            viewer.removeHandler("open", openHandler);
+            var imageCoords = region.split(",");
+            var tl = viewer.viewport.imageToViewportCoordinates(imageCoords[0], imageCoords[1]);
+            var br = viewer.viewport.imageToViewportCoordinates(imageCoords[2], imageCoords[3]);
+            var box1 = new OpenSeadragon.Rect(tl.x, tl.y, br.x, br.y);
+            viewer.viewport.fitBounds(box1);
+        }
+    }
+
+}
+
+
+
+
+
+class Annotation {
+
+    constructor(id) {
+        this['@context'] = "http://www.w3.org/ns/anno.jsonld";
+        this.type = "Annotation";
+        this.id = id;
+        this.body = [{
+            "type": "TextualBody",
+            "value": "",
+            "purpose": "commenting"
+        }];
+        this.target = {
+            "source": {
+                "id": "",
+                "type": "Canvas",
+                "partOf": {
+                    "source": "",
+                    "type": "Manifest"
+                }
+            }
+
+        };
+    }
+
+    setImageBody(serviceurl, region, rotation) {
+
+        var url = `${serviceurl}/${region}/300,/${rotation}/default.jpg`;
+
+        var imagebody = {
+            "id": url,
+            "type": "Image",
+            "format": "image/jpeg",
+            "width": 999,
+            "height": 999,
+            "service": [{
+                "id": serviceurl,
+                "type": "ImageService3",
+                "profile": "level2"
+            }]
+        }
+        this.body.push(imagebody);
+    }
+    setLabel(str) {
+        this.body[0].value = str;
+    }
+
+    setCanvas(str) {
+        this.target.source.id = str;
+    }
+    setManifest(str) {
+        this.target.source.partOf.source = str;
+    }
+    setSelector(region) {
+        region = region.replace('pixel:', '').replace('xywh=', '');
+        region = region.split(',').map(num => parseInt(num, 10)).join(',');
+        var selector = {
+            "type": "FragmentSelector",
+            "conformsTo": "http://www.w3.org/TR/media-frags/",
+            "value": "xywh=" + region
+        }
+        this.target.source['selector'] = selector;
+    }
+
+    makeCard(classname) {
+
+        var service = this.body[1].service[0].id;
+        var region = this.body[1].service[0].id;
+        //console.log(this);
+        var image = this.body[1].id;
+        //if(this.body[1]) { var image = this.body[1]; }
+        //else { var image = service + "/full/,300/0/default.jpg"; }
+
+        return `<div class="card small ${classname}" id='${this.id}'>
+      <div class="section media"><img src="${image}"/>
+      </div>
+      <div class="section meta">${this.body[0].value}</div>
+      </div>`;
+
+    }
+}
+
+</script>
+
+
+</body>
+</html>
