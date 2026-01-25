@@ -14,6 +14,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <script type='text/javascript' src='js/jquery.min.js'></script>
+  <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/5.0.1/openseadragon.min.js"></script>
   <script src="js/annotorious/openseadragon-annotorious.min.js"></script>
@@ -47,7 +48,7 @@
 
 <header>
       <form id="input" name="input" style="width:80%;">
-        <input type="text" name="url" id="url" placeholder="Manifest URL" style="width:92%;" value="https://figgy.princeton.edu/concern/scanned_resources/e15d96c6-360e-444e-854f-912556c67f29/manifest"/>
+        <input type="text" name="url" id="url" placeholder="Manifest URL" style="width:92%;" value=""/>
         <input type="submit" id="go" value="Go"/>
       </form>
 
@@ -97,9 +98,14 @@ var annotations = {};
 var tilesources = []
 
 
+
+
+
+
 var options = {
     id: "openseadragon",
     prefixUrl: "js/openseadragon/images/",
+    showRotationControl: true,
     tileSources: tilesources
 }
 
@@ -107,7 +113,19 @@ var viewer = OpenSeadragon(options);
 var c = new Cropper(viewer, doCrop);
 
 viewer.addHandler("open", openHandler);
-
+//viewer.addHandler('rotate', rotateHandler);
+/*
+function rotateHandler() {
+	var r = viewer.viewport.getRotation();
+        if (r < 0) {
+            r = 360 + r;
+        }
+        if (r == 360) {
+            r = 0;
+        }
+        jQuery("#rotation").val(r);
+}
+*/
 function openHandler() {
     if (current.target.source.selector) {
         var coords = current.target.source.selector.value.replace('xywh=', '');
@@ -121,8 +139,62 @@ function openHandler() {
 }
 
 
+
+
+    /*************************
+     * get the url vars
+     ***********************************/
+    function getURLValues() {
+        var search = window.location.search.replace(/^\?/, '').replace(/\+/g, ' ');
+        var values = {};
+        if (search.length) {
+            var part, parts = search.split('&');
+
+            for (var i = 0, iLen = parts.length; i < iLen; i++) {
+                part = parts[i].split('=');
+                values[part[0]] = window.decodeURIComponent(part[1]);
+            }
+        }
+        return values;
+    }
+
+
+/**************************
+* if there is a manifest url var, load it
+*************************************************/
+var vars = this.getURLValues();
+  if (typeof vars.manifest !== 'undefined') {
+  var url = vars.manifest;
+  jQuery("#url").val(url);
+  loadManifest(url);
+}
+/**************************
+* make the right gallery draggable/sortable
+*************************************************/
+$( "#gallery-right-slider" ).sortable({
+    update: function(e) {
+    
+	var newcrops = [];
+        jQuery('.right').each(function(i,v){
+          newcrops[v.id] = crops[v.id];
+        });
+        crops = newcrops;
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+
 function doCrop(e) {
-    console.log(e);
+console.log(e);
     jQuery("#preview").html(`<img src='${current.body[1].service[0].id}/${e.region}/350,/${e.rotation}/default.jpg'/>`);
     jQuery("#region").val(e.region);
     jQuery("#rotation").val(e.rotation);    
@@ -135,7 +207,6 @@ function drawCrops() {
 
     jQuery("#gallery-right-slider").empty();
     for (i in crops) {
-    console.log(crops[i]);
         var id = crops[i].id;
         var image = crops[i].body[1].id;
         var label = crops[i].body[0].value;
@@ -153,38 +224,14 @@ jQuery(".crop").click(function(e) {
     e.preventDefault();
 });
 
-/*
-function deactivateCrop() {
-    var cropbutton = jQuery(".crop");
-    cropbutton.removeClass('activated');
-    anno.setDrawingEnabled(false);
-}
 
-function activateCrop() {
-    var cropbutton = jQuery(".crop");
-    cropbutton.addClass('activated');
-    anno.setDrawingEnabled(true);
-}
-
-function toggleCrop() {
-    var cropbutton = jQuery(".crop");
-    if (cropbutton.hasClass('activated')) {
-        console.log('deactivate crop');
-        cropbutton.removeClass('activated');
-    } else {
-        console.log('activate crop');
-        cropbutton.addClass('activated');
-    }
-}
-*/
-
-jQuery(document).ready(function() {
 
 
     jQuery(document).on("click", ".card.left", function(e) {
         var id = jQuery(this).attr('id');
         jQuery('#region').val('full');
         jQuery('#rotation').val('0');
+        viewer.viewport.setRotation(0);
         jQuery('#textbody').val('');
         jQuery('#tagbody').val('');
         var o = cards[id];
@@ -203,10 +250,6 @@ jQuery(document).ready(function() {
         populateViewer(current);
 
     });
-
-
-
-});
 
 
 
@@ -265,7 +308,7 @@ function loadManifest(url) {
 
         }
     }).then((data) => {
-        console.log('done');
+        console.log('loaded');
     });
 
 
@@ -287,8 +330,30 @@ function addManifest(id, container, image, label, classname = "") {
 
 
 //id, container, image, label, id, classname
-function addCard(id, container, image, label, classname) {
-
+function addCard(id, container, image, label, classname = '') {
+    // Create card element
+    /* This may be used later in a non-jquery version
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.classList.add('small');
+    card.classList.add(classname);
+    const isec = document.createElement('div');
+    isec.className = 'section';
+    isec.classList.add('media');  
+    card.appendChild(isec);
+    const isecimg = document.createElement('img');
+    isecimg.setAttribute('src',image);
+    isec.appendChild(isecimg);
+    const msec = document.createElement('div');
+    msec.className = 'section';
+    msec.classList.add('meta'); 
+    msec.textContent = label;
+    card.appendChild(msec);
+    document.getElementById(container).appendChild(card);
+    console.log(card);
+    makeCardDraggable(card);
+    */
+    
     var c = `<div class="card small ${classname}" id='${id}'>
       <div class="section media"><img src="${image}"/>
       </div>
@@ -308,6 +373,10 @@ function populateViewer(a) {
     jQuery('#textbody').val(a.body[0].value);
     jQuery('#tagbody').val('');
 }
+
+
+
+
 
 
 jQuery("#annoForm").submit(function(e) {
@@ -332,7 +401,10 @@ jQuery("#annoForm").submit(function(e) {
       z.setSelector(region);
       crops[id] = z;
       tilesources[id] = current.body[1].service[0].id;
-      jQuery("#gallery-right-slider").append(z.makeCard('right'));
+      
+      crops[id] = z;
+      drawCrops();
+      //jQuery("#gallery-right-slider").append(z.makeCard('right'));
     }
     e.preventDefault();
     //c.toggleCrop();
@@ -341,7 +413,7 @@ jQuery("#annoForm").submit(function(e) {
     jQuery("#textbody").val('');
     jQuery("#tagbody").val('');
     jQuery("#region").val('');
-    jQuery("#rotation").val('');    
+    jQuery("#rotation").val('0');    
 });
 
 
@@ -486,6 +558,66 @@ window.onclick = function(event) {
 jQuery(".close").click(function(){
   closeModal();
 }); 
+
+
+// Function to make cards draggable and reorderable
+// this is currently not used
+function makeCardDraggable(card) { 
+  card.draggable = true;
+
+  card.addEventListener('dragstart', (e) => {
+    // Prevent dragging if clicking on image or links
+    if (e.target.tagName === 'IMG' || e.target.tagName === 'A' || e.target.tagName === 'BUTTON') {
+      return;
+    }
+
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', card.innerHTML);
+  });
+
+  card.addEventListener('dragend', (e) => {
+    card.classList.remove('dragging');
+  });
+
+  card.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const draggingCard = document.querySelector('.dragging');
+    if (draggingCard && draggingCard !== card) {
+      card.classList.add('drag-over');
+    }
+  });
+
+  card.addEventListener('dragleave', (e) => {
+    card.classList.remove('drag-over');
+  });
+
+  card.addEventListener('drop', (e) => {
+    e.preventDefault();
+    card.classList.remove('drag-over');
+    
+    const draggingCard = document.querySelector('.dragging');
+    if (draggingCard && draggingCard !== card) {
+      const gallery = document.getElementById('gallery');
+      const allCards = [...gallery.querySelectorAll('.card')];
+      const draggedIndex = allCards.indexOf(draggingCard);
+      const targetIndex = allCards.indexOf(card);
+
+      if (draggedIndex < targetIndex) {
+        card.parentNode.insertBefore(draggingCard, card.nextSibling);
+      } else {
+        card.parentNode.insertBefore(draggingCard, card);
+      }
+    }
+  });
+  
+  return card;
+}
+
+
+
 
 </script>
 

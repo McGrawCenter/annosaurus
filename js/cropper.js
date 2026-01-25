@@ -42,11 +42,7 @@ class Cropper {
     }
   }  
   
-    handlePress(event) {
-     	    console.log(this.active);
-            //if(this.active == false) { return true; }
-                        
-                        
+    handlePress(event) {     
             if (this.overlayOn) {
                 this.osd.removeOverlay("overlay");
             }
@@ -65,7 +61,7 @@ class Cropper {
                 overlayElement: overlayElement,
                 startPos: viewportPos
             };
-            console.log(this.drag);
+
 	                
   }
   handleDrag(event) {
@@ -122,7 +118,8 @@ class Cropper {
   } 
 
   handleRotate() {
-	        this.output.rotation = viewer.viewport.getRotation();
+
+	        this.output.rotation = this.osd.viewport.getRotation();
 
 	        if (this.output.rotation < 0) {
 	            this.output.rotation = 360 + this.output.rotation;
@@ -130,7 +127,8 @@ class Cropper {
 	        if (this.output.rotation == 360) {
 	            this.output.rotation = 0;
 	        }
-	    }
+	        console.log(this.output);
+  }
 	    
     
 
@@ -147,8 +145,9 @@ class Cropper {
               dragHandler: (event) => this.handleDrag(event),
               dragEndHandler: (event) => this.handleDragEnd(event)
             });  
-             /*    
+  
 	    this.osd.addHandler('rotate', (event) => this.handleRotate(event) );
+	                 /*  
 	    console.log(this.osd);
 	    var ele = document.createElement('img');
 	    ele.src = "js/cropper/crop./svg";
