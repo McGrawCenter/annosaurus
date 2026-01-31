@@ -27,41 +27,21 @@
 
 </head>
 <body>
-
-<!-- The Modal -->
-<div id="myModal" class="modal">
-
-  <!-- Modal content -->
-  <div class="modal-content">
-    <form name='myform' id="annoForm">
-       <div id="preview"></div>
-       <input type='hidden' id='ID'/>
-       <input type='hidden' id='region'/>
-       <input type='hidden' id='rotation'/>
-       <textarea id="textbody"></textarea>
-       <input type='text' id='tagbody'/>
-       <div style='text-align:right'><a href="#" class='button close'>Cancel</a><input type='submit' value='Create'/></div>
-    </form>  
-  </div>
-
-</div> 
-
 <header>
-      <form id="input" name="input" style="width:80%;">
-        <input type="text" name="url" id="url" placeholder="Manifest URL" style="width:92%;" value=""/>
-        <input type="submit" id="go" value="Go"/>
+      <form id="input" name="input" style="display:flex;width:60%;">
+        <input type="text" name="url" id="url" placeholder="Manifest URL" value=""/>
+        <!--<input type="submit" id="go" value="Go"/>-->
+        <input type="image" src="images/dinosaur.svg" alt="Submit Form" style="height: 30px;padding: 10px;border: solid 1px gray;"/>
       </form>
-
       <div id="gallery-right-toolbar">
         <a href="#" id="import" class="button">Import</a>
         <a href="#" id="export" class="button">Export</a>
-      </div>   
-      
+      </div>       
 </header>
-
 <div class='container'>
   <div id="left-panel">
   
+ 
       <div id="gallery-left">
         <div id="gallery-left-slider"></div>
       </div>  
@@ -71,12 +51,23 @@
   <div id="center-panel">
   
   
-     <div id="openseadragon" style="width:100%;height:90vh;margin:0 auto;border:solid 0px black;background:black;"></div> 
+     <div id="openseadragon"></div> 
      <div id="filmstrip"><div id="filmstrip-left-slider" class="gallery"></div></div>
  
   
   </div>
   <div id="right-panel">
+      <form name='myform' id="annoForm" class='' style='display:none;'>
+           <div id="preview"></div>
+           <input type='hidden' id='ID' value=""/>
+           <input type='hidden' id='image' value=""/>
+           <input type='hidden' id='region' value=""/>
+           <input type='hidden' id='rotation' value=""/>
+           <textarea id="textbody"></textarea>
+           <input type='text' id='tagbody' value=""/>
+           <div style='text-align:right'><a href="#" class='button close'>Cancel</a><a href='#' class='button create'>Create</a></div>
+      </form>  
+  
       <div id="gallery-right">
         <div id="gallery-right-slider"></div>
       </div>  
@@ -95,7 +86,8 @@ var manifests = {};
 var cards = {};
 var crops = {};
 var annotations = {};
-var tilesources = []
+var tilesources = [];
+var mode = 'create';
 
 
 
@@ -114,7 +106,7 @@ var c = new Cropper(viewer, doCrop);
 
 viewer.addHandler("open", openHandler);
 //viewer.addHandler('rotate', rotateHandler);
-/*
+
 function rotateHandler() {
 	var r = viewer.viewport.getRotation();
         if (r < 0) {
@@ -125,7 +117,7 @@ function rotateHandler() {
         }
         jQuery("#rotation").val(r);
 }
-*/
+
 function openHandler() {
     if (current.target.source.selector) {
         var coords = current.target.source.selector.value.replace('xywh=', '');
@@ -194,13 +186,62 @@ $( "#gallery-right-slider" ).sortable({
 
 
 function doCrop(e) {
-console.log(e);
+/*
     jQuery("#preview").html(`<img src='${current.body[1].service[0].id}/${e.region}/350,/${e.rotation}/default.jpg'/>`);
     jQuery("#region").val(e.region);
-    jQuery("#rotation").val(e.rotation);    
-    openModal();
+    jQuery("#rotation").val(e.rotation);  
+*/
+    switch(mode) {
+      case 'create':
+        var image =  `${current.body[1].service[0].id}/${e.region}/300,/${e.rotation}/default.jpg`;
+        populateForm( null, image, e.region, e.rotation, '', '');      
+      break;
+      
+      case 'update':
+        var image =  `${current.body[1].service[0].id}/${e.region}/300,/${e.rotation}/default.jpg`;
+        updatePreview( image);       
+      break;
+    }
 
 }
+
+function populateForm(id, image, region, rotation, text, tags) {
+    jQuery("#ID").val(id);
+    jQuery("#image").val(image);
+    jQuery("#preview").html(`<img src='${image}'/>`);
+    jQuery("#region").val(region);
+    jQuery("#rotation").val(rotation);
+    jQuery("#textbody").val(text);
+    jQuery("#tagbody").val(tags);
+    showForm();
+}
+
+function updatePreview(image) {
+    jQuery("#image").val(image);
+    jQuery("#preview").html(`<img src='${image}'/>`);
+    showForm();
+}
+
+function hideForm() {
+    jQuery("#annoForm").hide();
+}
+function showForm() {
+    jQuery("#annoForm").show();
+}
+function resetForm() {
+    jQuery("#ID").val("");
+    jQuery("#image").val("");
+    jQuery("#preview").html("");
+    jQuery("#region").val("");
+    jQuery("#rotation").val(0);
+    jQuery("#textbody").val("");
+    jQuery("#tagbody").val("");
+    showForm();
+    mode = 'create';
+    setMode();    
+}
+
+
 
 
 function drawCrops() {
@@ -225,9 +266,16 @@ jQuery(".crop").click(function(e) {
 });
 
 
+    jQuery('.close').click(function(e) {
+        hideForm();
+    });
 
 
     jQuery(document).on("click", ".card.left", function(e) {
+        setActiveLeft(jQuery(this));
+        mode = 'create';
+        setMode();
+        console.log(mode);
         var id = jQuery(this).attr('id');
         jQuery('#region').val('full');
         jQuery('#rotation').val('0');
@@ -237,16 +285,26 @@ jQuery(".crop").click(function(e) {
         var o = cards[id];
         current = o;
         viewer.open(o.body[1].service[0].id + "/info.json");
+        var image = o.body[1].service[0].id + "/full/300,/0/default.jpg";
+        populateForm( '', image, 'full', 0, '', '');
+        showForm();
     });
 
 
 
     jQuery(document).on("click", ".card.right", function(e) {
+        setActiveRight(jQuery(this));
+        mode = 'update';
+        setMode();
+        console.log(mode);    
         var id = jQuery(this).attr('id');
         var o = crops[id];
         current = o;
-	openModal();
-	
+        var image = o.body[1].id;
+        var parts = image.split("/");
+        var text = o.body[0].value;
+        var tags = "";
+	populateForm( id, image, parts[7], parts[9], text, tags);	
         populateViewer(current);
 
     });
@@ -327,33 +385,18 @@ function addManifest(id, container, image, label, classname = "") {
 
 }
 
-
+function setActiveLeft(o) {
+  jQuery(".card.left").removeClass('active');
+  o.addClass('active');
+}
+function setActiveRight(o) {
+  jQuery(".card.right").removeClass('active');
+  o.addClass('active');
+}
 
 //id, container, image, label, id, classname
 function addCard(id, container, image, label, classname = '') {
-    // Create card element
-    /* This may be used later in a non-jquery version
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.classList.add('small');
-    card.classList.add(classname);
-    const isec = document.createElement('div');
-    isec.className = 'section';
-    isec.classList.add('media');  
-    card.appendChild(isec);
-    const isecimg = document.createElement('img');
-    isecimg.setAttribute('src',image);
-    isec.appendChild(isecimg);
-    const msec = document.createElement('div');
-    msec.className = 'section';
-    msec.classList.add('meta'); 
-    msec.textContent = label;
-    card.appendChild(msec);
-    document.getElementById(container).appendChild(card);
-    console.log(card);
-    makeCardDraggable(card);
-    */
-    
+   
     var c = `<div class="card small ${classname}" id='${id}'>
       <div class="section media"><img src="${image}"/>
       </div>
@@ -364,33 +407,55 @@ function addCard(id, container, image, label, classname = '') {
 
 }
 
+function setMode() {
+  switch(mode) {
+    case 'update':
+      jQuery('.create').text('Update');
+    break;
+    case 'create':
+      jQuery('.create').text('Create');
+    break;
+  }
+}
+
 function populateViewer(a) {
+    console.log(a);
+    
+    console.log(a.body[1].service[0].id + "/info.json");
     viewer.open(a.body[1].service[0].id + "/info.json");
+    /*
     var parts = a.body[1].id.split('/');
     jQuery('#ID').val(a.id);
     jQuery('#region').val(parts[6]);
     jQuery('#rotation').val(parts[8]);
     jQuery('#textbody').val(a.body[0].value);
     jQuery('#tagbody').val('');
+    */
 }
 
 
 
 
 
+jQuery(".create").click(function(e) {
 
-jQuery("#annoForm").submit(function(e) {
     var ID = jQuery("#ID").val();
     var text = jQuery("#textbody").val();
     var tags = jQuery("#tagbody").val();
     var region = jQuery("#region").val();
     var rotation = jQuery("#rotation").val();
+    var image = jQuery("#image").val();
     
+    // New annotation
     if(ID !='') {
+       console.log(crops[ID].body[1]);
+      crops[ID].body[1].id = image;
       crops[ID].body[0].value = text;
       drawCrops();
+      resetForm();
       
     }
+    // update an annotation
     else {
       var id = makeid();
       var z = new Annotation(id);
@@ -398,18 +463,19 @@ jQuery("#annoForm").submit(function(e) {
       z.setCanvas(current.target.source.id);
       z.setManifest(current.target.source.partOf.source);
       z.setImageBody(current.body[1].service[0].id, region, rotation);
-      z.setSelector(region);
+      if(region != 'full') { z.setSelector(region); }
       crops[id] = z;
       tilesources[id] = current.body[1].service[0].id;
       
       crops[id] = z;
       drawCrops();
+      resetForm();
       //jQuery("#gallery-right-slider").append(z.makeCard('right'));
     }
     e.preventDefault();
     //c.toggleCrop();
     c.clear();
-    closeModal();
+
     jQuery("#textbody").val('');
     jQuery("#tagbody").val('');
     jQuery("#region").val('');
@@ -537,27 +603,7 @@ class Annotation {
 }
 
 
-var modal = document.getElementById("myModal");
-function openModal() {
-  setTimeout(function() {
- jQuery("#textbody").focus();
-  }, 0);
-  modal.style.display = "block";
-}
-function closeModal() {
-  
-  modal.style.display = "none";
-}
-// When the user clicks anywhere outside of the modal, close it
-window.onclick = function(event) {
-  if (event.target == modal) {
-    modal.style.display = "none";
-  }
-}
 
-jQuery(".close").click(function(){
-  closeModal();
-}); 
 
 
 // Function to make cards draggable and reorderable
